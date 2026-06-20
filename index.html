@@ -328,21 +328,39 @@
   </div>
 
   <!-- FINAL VICTORY -->
-  <div class="screen" id="screen-victory">
+  <div class="screen" id="screen-victory" style="overflow-y:auto;">
     <div class="corner-tag">MISSION COMPLETE</div>
     <h1 class="title" style="font-size:clamp(26px,5vw,40px);">ALL DEVICES DEFUSED</h1>
     <h2 class="sub">HAPPY FATHER'S DAY, CHARLES</h2>
-    <p class="flavor">
+    <p class="flavor" id="victoryMessage">
       Three bombs down, zero casualties (eventually). Turns out the steadiest hands
       in the field belong to the same guy who's been defusing everything else for
-      years — Bad malicious softwares, dinner falures and obviously the odd bad smell, power trip, loud alarm, dangerously close to seting on fire plugs 
+      years — bad malicious software, dinner failures, and obviously the odd bad
+      smell, power trip, blaring alarm, or plug dangerously close to catching fire.
       <br><br>
       Thank you for always being there, never letting that bomb explode.
       <br><br>
       <b style="color:var(--amber);">Happy Father's Day. Mission accomplished. Always.</b>
     </p>
-    <div class="btn-row">
-      <button class="btn" onclick="resetAll()">↻ RUN IT AGAIN</button>
+
+    <div id="arcadeIntro">
+      <div class="btn-row" style="margin-top:6px;">
+        <button class="btn" onclick="startArcade()">🎖 PLAY BONUS ROUND</button>
+        <button class="btn danger" onclick="resetAll()">↻ RUN IT AGAIN</button>
+      </div>
+    </div>
+
+    <div id="arcadeWrap" style="display:none; width:100%; margin-top:10px;">
+      <div class="hud-bar" style="border-bottom:none; margin-bottom:6px;">
+        <span class="mission">VICTORY ARCADE — CATCH THE MEDALS</span>
+        <span style="font-size:13px; color:var(--amber);">SCORE: <span id="arcadeScore">0</span> &nbsp; TIME: <span id="arcadeTime">20</span>s</span>
+      </div>
+      <div id="arcadeZone" style="position:relative; width:100%; height:220px; background:var(--metal); border:1px solid var(--hud-dim); border-radius:4px; overflow:hidden; cursor:pointer;"></div>
+      <p style="font-size:12px; color:var(--hud-dim); margin:8px 0 0;">Click the medals before they hit the ground. Misses don't cost you — just go for the highest score.</p>
+      <div class="btn-row" id="arcadeEndRow" style="display:none;">
+        <button class="btn" onclick="startArcade()">↻ PLAY AGAIN</button>
+        <button class="btn danger" onclick="resetAll()">↻ RUN MISSION AGAIN</button>
+      </div>
     </div>
   </div>
 </div>
@@ -628,6 +646,87 @@ function spawnConfetti(){
     app.appendChild(c);
     setTimeout(()=>c.remove(), 5000);
   }
+}
+
+/* ---------------- VICTORY ARCADE: catch the medals ---------------- */
+let arcadeScore = 0;
+let arcadeTimeLeft = 20;
+let arcadeSpawnInterval = null;
+let arcadeTickInterval = null;
+let arcadeFallSpeed = 2.2; // seconds to fall, gets faster over time
+
+function startArcade(){
+  document.getElementById('arcadeIntro').style.display = 'none';
+  document.getElementById('arcadeEndRow').style.display = 'none';
+  document.getElementById('arcadeWrap').style.display = 'block';
+
+  const zone = document.getElementById('arcadeZone');
+  zone.innerHTML = '';
+
+  arcadeScore = 0;
+  arcadeTimeLeft = 20;
+  arcadeFallSpeed = 2.2;
+  document.getElementById('arcadeScore').textContent = arcadeScore;
+  document.getElementById('arcadeTime').textContent = arcadeTimeLeft;
+
+  clearInterval(arcadeSpawnInterval);
+  clearInterval(arcadeTickInterval);
+
+  arcadeSpawnInterval = setInterval(spawnMedal, 700);
+  arcadeTickInterval = setInterval(()=>{
+    arcadeTimeLeft--;
+    document.getElementById('arcadeTime').textContent = Math.max(arcadeTimeLeft,0);
+    if(arcadeTimeLeft % 5 === 0 && arcadeFallSpeed > 1.1) arcadeFallSpeed -= 0.15;
+    if(arcadeTimeLeft <= 0) endArcade();
+  }, 1000);
+}
+
+function spawnMedal(){
+  const zone = document.getElementById('arcadeZone');
+  if(!zone) return;
+  const medal = document.createElement('div');
+  const emojis = ["🎖️","🏅","🎉"];
+  medal.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+  medal.style.position = 'absolute';
+  medal.style.left = (5 + Math.random()*85) + '%';
+  medal.style.top = '-30px';
+  medal.style.fontSize = (22 + Math.random()*10) + 'px';
+  medal.style.cursor = 'pointer';
+  medal.style.transition = `top ${arcadeFallSpeed}s linear`;
+  medal.style.userSelect = 'none';
+  zone.appendChild(medal);
+
+  requestAnimationFrame(()=>{ medal.style.top = '210px'; });
+
+  medal.onclick = (e)=>{
+    e.stopPropagation();
+    arcadeScore++;
+    document.getElementById('arcadeScore').textContent = arcadeScore;
+    medal.style.transition = 'transform .2s, opacity .2s';
+    medal.style.transform = 'scale(1.6)';
+    medal.style.opacity = '0';
+    setTimeout(()=>medal.remove(), 200);
+  };
+
+  setTimeout(()=>{ if(medal.parentNode) medal.remove(); }, arcadeFallSpeed*1000 + 50);
+}
+
+function endArcade(){
+  clearInterval(arcadeSpawnInterval);
+  clearInterval(arcadeTickInterval);
+  const zone = document.getElementById('arcadeZone');
+  zone.innerHTML = `<div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+      <div style="font-family:'Black Ops One', monospace; font-size:22px; color:var(--hud); text-shadow:0 0 10px rgba(143,255,92,0.6);">FINAL SCORE: ${arcadeScore}</div>
+      <div style="font-size:12px; color:var(--hud-dim); margin-top:6px;">${arcadeScoreMessage(arcadeScore)}</div>
+    </div>`;
+  document.getElementById('arcadeEndRow').style.display = 'flex';
+}
+
+function arcadeScoreMessage(score){
+  if(score >= 20) return "Decorated officer. Charles, you absolute legend.";
+  if(score >= 12) return "Solid medal haul. Respectable work, soldier.";
+  if(score >= 6) return "A few caught. Better hands on a bomb than a medal, clearly.";
+  return "Rough round — good thing the bombs were easier than this.";
 }
 </script>
 </body>
