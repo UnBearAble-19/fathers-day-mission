@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OPERATION: CHARLES — Defuse the Bomb</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d08;
+    --panel:#11160d;
+    --olive:#3a4a23;
+    --olive-light:#5c7a32;
+    --hud:#8fff5c;
+    --hud-dim:#3f6b2a;
+    --amber:#ffb000;
+    --red:#ff2e2e;
+    --red-dim:#7a1515;
+    --metal:#1c2316;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;height:100%;
+    background:var(--bg);
+    color:var(--hud);
+    font-family:'Share Tech Mono', monospace;
+    overflow:hidden;
+  }
+  #app{
+    position:relative;
+    width:100%;height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    background:
+      radial-gradient(ellipse at center, rgba(143,255,92,0.04) 0%, rgba(0,0,0,0) 60%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px),
+      linear-gradient(180deg,#0a0d08,#050603);
+  }
+  .scanline{
+    position:absolute;top:0;left:0;width:100%;height:100%;
+    pointer-events:none;
+    background:linear-gradient(transparent 0%, rgba(143,255,92,0.05) 50%, transparent 100%);
+    background-size:100% 6px;
+    animation:scan 9s linear infinite;
+    mix-blend-mode:overlay;
+    z-index:50;
+  }
+  @keyframes scan{ from{background-position-y:0;} to{background-position-y:600px;} }
+
+  .screen{
+    width:min(900px, 95vw);
+    height:min(620px, 92vh);
+    background:var(--panel);
+    border:3px solid var(--olive-light);
+    border-radius:6px;
+    box-shadow:0 0 0 6px var(--metal), 0 0 40px rgba(0,0,0,0.8), inset 0 0 60px rgba(0,0,0,0.6);
+    position:relative;
+    display:none;
+    flex-direction:column;
+    padding:28px 36px;
+    text-align:center;
+  }
+  .screen.active{display:flex;}
+  .corner-tag{
+    position:absolute; top:10px; left:14px;
+    font-size:11px; color:var(--hud-dim); letter-spacing:2px;
+  }
+  .corner-tag.right{left:auto; right:14px;}
+
+  h1.title{
+    font-family:'Black Ops One', monospace;
+    font-size:clamp(28px,5vw,46px);
+    color:var(--red);
+    text-shadow:0 0 14px rgba(255,46,46,0.6);
+    letter-spacing:2px;
+    margin:10px 0 4px;
+  }
+  h2.sub{
+    font-family:'Black Ops One', monospace;
+    font-size:clamp(14px,2.4vw,20px);
+    color:var(--amber);
+    letter-spacing:3px;
+    margin:0 0 18px;
+  }
+  p.flavor{
+    color:var(--hud);
+    opacity:0.85;
+    line-height:1.6;
+    font-size:15px;
+    max-width:640px;
+    margin:0 auto 18px;
+  }
+  .btn{
+    font-family:'Black Ops One', monospace;
+    background:linear-gradient(180deg, var(--olive-light), var(--olive));
+    color:#0a0d08;
+    border:2px solid #1a1a1a;
+    padding:14px 30px;
+    font-size:16px;
+    letter-spacing:2px;
+    border-radius:4px;
+    cursor:pointer;
+    box-shadow:0 4px 0 #0a0d08, 0 6px 10px rgba(0,0,0,0.5);
+    transition:transform .08s ease;
+  }
+  .btn:hover{filter:brightness(1.15);}
+  .btn:active{transform:translateY(4px); box-shadow:0 0 0 #0a0d08;}
+  .btn.danger{background:linear-gradient(180deg,#ff5b5b,var(--red));color:#1a0000;}
+  .btn-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:auto;}
+
+  /* HUD bar during missions */
+  .hud-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    border-bottom:2px solid var(--hud-dim);
+    padding-bottom:10px;margin-bottom:14px;
+    font-size:13px; letter-spacing:1px;
+  }
+  .hud-bar .mission{color:var(--amber);}
+  .timer{
+    font-family:'Black Ops One', monospace;
+    font-size:34px;
+    color:var(--red);
+    text-shadow:0 0 10px rgba(255,46,46,0.7);
+    letter-spacing:3px;
+  }
+  .timer.warn{ animation:pulse .5s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+  .manual{
+    background:var(--metal);
+    border:1px dashed var(--hud-dim);
+    border-radius:4px;
+    padding:10px 14px;
+    font-size:13.5px;
+    color:var(--hud);
+    margin-bottom:16px;
+    text-align:left;
+    line-height:1.5;
+  }
+  .manual b{color:var(--amber);}
+
+  .level-body{flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:18px;}
+
+  /* WIRES */
+  .wires{display:flex; flex-direction:column; gap:10px; width:100%; max-width:480px;}
+  .wire-row{
+    display:flex; align-items:center; gap:12px;
+    background:var(--metal); border:1px solid #222; border-radius:4px; padding:8px 14px;
+    cursor:pointer;
+  }
+  .wire-row:hover{border-color:var(--hud-dim);}
+  .wire-row .idx{font-size:11px; color:var(--hud-dim); width:18px;}
+  .wire-strip{
+    flex:1; height:14px; border-radius:7px;
+    box-shadow:inset 0 2px 3px rgba(0,0,0,0.5), inset 0 -2px 3px rgba(255,255,255,0.15);
+  }
+  .wire-row.cut .wire-strip{ opacity:0.25; filter:grayscale(1); }
+  .wire-row.cut::after{content:'✂ CUT'; font-size:11px; color:var(--hud-dim);}
+
+  /* KEYPAD */
+  .keypad{display:grid; grid-template-columns:repeat(3,64px); gap:10px;}
+  .keypad button{
+    width:64px;height:54px;
+    background:var(--metal); border:1px solid #2a2a2a; border-radius:4px;
+    color:var(--hud); font-family:'Share Tech Mono'; font-size:20px; cursor:pointer;
+  }
+  .keypad button:hover{border-color:var(--hud-dim); background:#1c2316;}
+  .keypad button.wide{grid-column:span 1;}
+  .code-display{
+    font-family:'Black Ops One', monospace;
+    font-size:30px; letter-spacing:8px;
+    background:#000; border:2px solid var(--hud-dim); border-radius:4px;
+    padding:8px 22px; min-width:200px; color:var(--hud);
+    text-shadow:0 0 8px rgba(143,255,92,0.6);
+  }
+
+  /* SIMON PATTERN */
+  .pattern-grid{display:grid; grid-template-columns:repeat(2,110px); gap:14px;}
+  .pad{
+    width:110px;height:90px;border-radius:6px;cursor:pointer;
+    border:2px solid rgba(0,0,0,0.5);
+    opacity:0.55; transition:opacity .15s, transform .1s;
+  }
+  .pad.lit{opacity:1; transform:scale(1.04); box-shadow:0 0 22px currentColor;}
+  .pad.disabled{cursor:default;}
+  .pad-red{background:#7a1515; color:#ff2e2e;}
+  .pad-amber{background:#7a5a10; color:#ffb000;}
+  .pad-green{background:#2a4a17; color:#8fff5c;}
+  .pad-blue{background:#15396b; color:#4fa8ff;}
+
+  .progress-dots{display:flex;gap:8px;margin-top:6px;}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--hud-dim);}
+  .dot.done{background:var(--hud);}
+
+  /* explosion / death */
+  .boom-flash{
+    position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:99;
+  }
+  .boom-flash.go{ animation:flash .35s ease-out; }
+  @keyframes flash{ 0%{opacity:1;} 100%{opacity:0;} }
+
+  .died-text{
+    font-family:'Black Ops One', monospace;
+    font-size:clamp(40px,8vw,72px);
+    color:var(--red);
+    text-shadow:0 0 24px rgba(255,46,46,0.8);
+    letter-spacing:6px;
+    margin:18px 0 6px;
+  }
+
+  .footer-note{font-size:11px; color:var(--hud-dim); margin-top:14px; letter-spacing:1px;}
+
+  .confetti{
+    position:absolute; top:-10px; width:8px; height:14px; opacity:0.9;
+    animation:fall linear forwards;
+  }
+  @keyframes fall{ to{ transform:translateY(700px) rotate(540deg); opacity:0.2; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="scanline"></div>
+  <div class="boom-flash" id="boomFlash"></div>
+
+  <!-- INTRO -->
+  <div class="screen active" id="screen-intro">
+    <div class="corner-tag">OP-ID: F-DAY-CHARLES</div>
+    <div class="corner-tag right">CLASSIFIED</div>
+    <h1 class="title">OPERATION: CHARLES</h1>
+    <h2 class="sub">FATHER'S DAY DEFUSAL PROTOCOL</h2>
+    <p class="flavor">
+      Three devices have been planted in the field. Command has chosen one operator
+      for this mission — the man who's been defusing family chaos for years, with
+      none of the bomb-disposal training: <b style="color:var(--amber)">Charles</b>.
+      <br><br>
+      Three bombs. Three skills. One countdown. Read the manual, trust your gut,
+      and remember — out there, dying is just part of the job. Respawn and go again.
+    </p>
+    <p class="flavor" style="opacity:0.6; font-size:12.5px;">
+      Mission briefing will appear before each device. Good luck, soldier. Happy Father's Day.
+    </p>
+    <div class="btn-row">
+      <button class="btn" onclick="startMission()">▶ BEGIN MISSION</button>
+    </div>
+  </div>
+
+  <!-- LEVEL BRIEF -->
+  <div class="screen" id="screen-brief">
+    <div class="corner-tag" id="briefTag">DEVICE 1 / 3</div>
+    <h1 class="title" id="briefTitle" style="font-size:30px;">WIRE ARRAY</h1>
+    <p class="flavor" id="briefText"></p>
+    <div class="btn-row">
+      <button class="btn danger" onclick="enterLevel()">ARM TIMER &amp; PROCEED</button>
+    </div>
+  </div>
+
+  <!-- LEVEL 1: WIRES -->
+  <div class="screen" id="screen-l1">
+    <div class="hud-bar">
+      <span class="mission">DEVICE 1 / 3 — WIRE ARRAY</span>
+      <span class="timer" id="timerL1">00:45</span>
+    </div>
+    <div class="manual">
+      <b>FIELD MANUAL — WIRE DEFUSAL:</b><br>
+      1. If there are <b>zero RED</b> wires, cut the <b>SECOND</b> wire.<br>
+      2. Otherwise, if the <b>LAST</b> wire is <b>YELLOW</b>, cut the <b>LAST</b> wire.<br>
+      3. Otherwise, if any two wires share the <b>SAME COLOUR</b>, cut the <b>FIRST</b> one of that pair.<br>
+      4. Otherwise, cut the <b>LAST</b> wire.
+    </div>
+    <div class="level-body">
+      <div class="wires" id="wireContainer"></div>
+    </div>
+  </div>
+
+  <!-- LEVEL 2: KEYPAD -->
+  <div class="screen" id="screen-l2">
+    <div class="hud-bar">
+      <span class="mission">DEVICE 2 / 3 — CIPHER LOCK</span>
+      <span class="timer" id="timerL2">01:00</span>
+    </div>
+    <div class="manual" id="cipherClue"></div>
+    <div class="level-body">
+      <div class="code-display" id="codeDisplay">____</div>
+      <div class="keypad" id="keypad"></div>
+      <button class="btn" style="margin-top:6px;" onclick="submitCode()">SUBMIT CODE</button>
+    </div>
+  </div>
+
+  <!-- LEVEL 3: PATTERN -->
+  <div class="screen" id="screen-l3">
+    <div class="hud-bar">
+      <span class="mission">DEVICE 3 / 3 — CIRCUIT SEQUENCE</span>
+      <span class="timer" id="timerL3">01:00</span>
+    </div>
+    <div class="manual">
+      <b>FIELD MANUAL:</b> Watch the circuit pulse. Repeat the exact sequence by pressing the pads in order.
+      Sequence length increases each round. One mistake detonates the device.
+    </div>
+    <div class="level-body">
+      <div class="pattern-grid" id="patternGrid">
+        <div class="pad pad-red" data-c="red"></div>
+        <div class="pad pad-amber" data-c="amber"></div>
+        <div class="pad pad-green" data-c="green"></div>
+        <div class="pad pad-blue" data-c="blue"></div>
+      </div>
+      <div class="progress-dots" id="patternDots"></div>
+      <div id="patternStatus" style="font-size:13px; color:var(--hud-dim);">WATCH THE SEQUENCE...</div>
+    </div>
+  </div>
+
+  <!-- LEVEL WIN (between devices) -->
+  <div class="screen" id="screen-levelwin">
+    <h1 class="title" style="color:var(--hud); text-shadow:0 0 14px rgba(143,255,92,0.6);">DEVICE NEUTRALISED</h1>
+    <p class="flavor" id="levelWinText">Nice work, soldier.</p>
+    <div class="btn-row">
+      <button class="btn" onclick="proceedNext()">CONTINUE MISSION</button>
+    </div>
+  </div>
+
+  <!-- DEATH SCREEN -->
+  <div class="screen" id="screen-dead">
+    <div class="died-text">YOU DIED</div>
+    <p class="flavor" id="deathReason">The device detonated. Standard procedure: respawn and try again.</p>
+    <p class="flavor" style="color:var(--amber); font-style:italic;">"I expect you to die." — every bomb, probably</p>
+    <div class="btn-row">
+      <button class="btn danger" onclick="respawn()">↻ RESPAWN</button>
+    </div>
+  </div>
+
+  <!-- FINAL VICTORY -->
+  <div class="screen" id="screen-victory">
+    <div class="corner-tag">MISSION COMPLETE</div>
+    <h1 class="title" style="font-size:clamp(26px,5vw,40px);">ALL DEVICES DEFUSED</h1>
+    <h2 class="sub">HAPPY FATHER'S DAY, CHARLES</h2>
+    <p class="flavor">
+      Three bombs down, zero casualties (eventually). Turns out the steadiest hands
+      in the field belong to the same guy who's been defusing everything else for
+      years — flat tyres, family dramas, school pickups, and the occasional smoke alarm.
+      <br><br>
+      Thanks for always showing up, staying calm under pressure, and never actually
+      letting anything blow up. This one's for you.
+      <br><br>
+      <b style="color:var(--amber);">Happy Father's Day. Mission accomplished. Always.</b>
+    </p>
+    <div class="btn-row">
+      <button class="btn" onclick="resetAll()">↻ RUN IT AGAIN</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let state = { level: 0, lives: true };
+let timerInterval = null;
+let timeLeft = 0;
+let currentTimerEl = null;
+let pendingCode = "";
+
+const briefs = [
+  { tag:"DEVICE 1 / 3", title:"WIRE ARRAY",
+    text:"Six wires, one detonator. The manual on screen tells you exactly which wire to cut — read it carefully, the colours are randomised every attempt. Cut the wrong one and you're gone." },
+  { tag:"DEVICE 2 / 3", title:"CIPHER LOCK",
+    text:"A keypad lock guards this device. Solve the arithmetic clue on screen to find the defusal code, then enter it before the timer runs out." },
+  { tag:"DEVICE 3 / 3", title:"CIRCUIT SEQUENCE",
+    text:"Final device. Memorise the flashing sequence and repeat it exactly. It gets longer each round. Steady hands, Charles." }
+];
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startMission(){
+  state.level = 0;
+  goToBrief(0);
+}
+
+function goToBrief(i){
+  const b = briefs[i];
+  document.getElementById('briefTag').textContent = b.tag;
+  document.getElementById('briefTitle').textContent = b.title;
+  document.getElementById('briefText').textContent = b.text;
+  showScreen('screen-brief');
+}
+
+function enterLevel(){
+  if(state.level===0) initLevel1();
+  if(state.level===1) initLevel2();
+  if(state.level===2) initLevel3();
+}
+
+function startTimer(seconds, displayId, onFail){
+  timeLeft = seconds;
+  currentTimerEl = document.getElementById(displayId);
+  updateTimerDisplay();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(()=>{
+    timeLeft--;
+    updateTimerDisplay();
+    if(timeLeft<=10) currentTimerEl.classList.add('warn');
+    if(timeLeft<=0){
+      clearInterval(timerInterval);
+      onFail();
+    }
+  },1000);
+}
+function updateTimerDisplay(){
+  const m = Math.floor(Math.max(timeLeft,0)/60).toString().padStart(2,'0');
+  const s = Math.max(timeLeft,0)%60;
+  currentTimerEl.textContent = m+":"+s.toString().padStart(2,'0');
+}
+function stopTimer(){ clearInterval(timerInterval); if(currentTimerEl) currentTimerEl.classList.remove('warn'); }
+
+function explode(reasonText){
+  stopTimer();
+  document.getElementById('boomFlash').classList.add('go');
+  setTimeout(()=>{
+    document.getElementById('boomFlash').classList.remove('go');
+    document.getElementById('deathReason').textContent = reasonText;
+    showScreen('screen-dead');
+  }, 250);
+}
+function respawn(){ goToBrief(state.level); }
+
+function winLevel(text){
+  stopTimer();
+  document.getElementById('levelWinText').textContent = text;
+  showScreen('screen-levelwin');
+}
+function proceedNext(){
+  state.level++;
+  if(state.level>=3){
+    spawnConfetti();
+    showScreen('screen-victory');
+  } else {
+    goToBrief(state.level);
+  }
+}
+function resetAll(){ state.level=0; showScreen('screen-intro'); }
+
+/* ---------------- LEVEL 1: WIRES ---------------- */
+const WIRE_COLORS = {
+  red:"#d6342f", blue:"#2f5fd6", yellow:"#e0c93a",
+  green:"#3a9d4a", white:"#dcdcdc", black:"#2a2a2a"
+};
+let wireColors = [];
+let wireCorrectIndex = 0;
+
+function initLevel1(){
+  const palette = Object.keys(WIRE_COLORS);
+  wireColors = [];
+  for(let i=0;i<6;i++){ wireColors.push(palette[Math.floor(Math.random()*palette.length)]); }
+  wireCorrectIndex = computeWireAnswer(wireColors);
+
+  const container = document.getElementById('wireContainer');
+  container.innerHTML = "";
+  wireColors.forEach((c,i)=>{
+    const row = document.createElement('div');
+    row.className = "wire-row";
+    row.innerHTML = `<span class="idx">${i+1}</span><div class="wire-strip" style="background:${WIRE_COLORS[c]}"></div>`;
+    row.onclick = ()=>cutWire(i,row);
+    container.appendChild(row);
+  });
+
+  showScreen('screen-l1');
+  startTimer(45,'timerL1', ()=>explode("Time ran out before you found the right wire."));
+}
+function computeWireAnswer(colors){
+  const redCount = colors.filter(c=>c==='red').length;
+  if(redCount===0) return 1; // second wire (0-indexed)
+  if(colors[colors.length-1]==='yellow') return colors.length-1;
+  for(let i=0;i<colors.length;i++){
+    for(let j=i+1;j<colors.length;j++){
+      if(colors[i]===colors[j]) return i;
+    }
+  }
+  return colors.length-1;
+}
+function cutWire(i, rowEl){
+  if(rowEl.classList.contains('cut')) return;
+  rowEl.classList.add('cut');
+  if(i===wireCorrectIndex){
+    winLevel("Clean cut. The array goes dark. One down, two to go.");
+  } else {
+    explode("Wrong wire. The manual doesn't lie, Charles.");
+  }
+}
+
+/* ---------------- LEVEL 2: KEYPAD ---------------- */
+function initLevel2(){
+  const a = 5 + Math.floor(Math.random()*20);  // 5-24
+  const b = 2 + Math.floor(Math.random()*9);   // 2-10
+  const c = 1 + Math.floor(Math.random()*6);   // 1-6
+  const templates = [
+    { text:`Enter code: (A × ${b}) − ${c}, where A = ${a}`, code:(a*b)-c },
+    { text:`Enter code: ${a} + (${b} × ${c})`, code:a+(b*c) },
+    { text:`Enter code: (${a} + ${b}) × ${c} − ${a}`, code:((a+b)*c)-a }
+  ];
+  const pick = templates[Math.floor(Math.random()*templates.length)];
+  pendingCode = String(pick.code);
+  document.getElementById('cipherClue').innerHTML =
+    `<b>FIELD MANUAL — CIPHER LOCK:</b><br>${pick.text}<br>Enter the result on the keypad, then submit.`;
+
+  let entered = "";
+  const display = document.getElementById('codeDisplay');
+  display.textContent = "____".slice(0, Math.max(0, 4-entered.length));
+
+  const keys = document.getElementById('keypad');
+  keys.innerHTML = "";
+  const layout = ["1","2","3","4","5","6","7","8","9","⌫","0","↵"];
+  layout.forEach(k=>{
+    const btn = document.createElement('button');
+    btn.textContent = k;
+    btn.onclick = ()=>{
+      if(k==="⌫"){ entered = entered.slice(0,-1); }
+      else if(k==="↵"){ submitCode(); return; }
+      else if(entered.length<5){ entered += k; }
+      display.textContent = entered.padEnd(4,'_');
+      window._enteredCode = entered;
+    };
+    keys.appendChild(btn);
+  });
+  window._enteredCode = "";
+
+  showScreen('screen-l2');
+  startTimer(60,'timerL2', ()=>explode("Time ran out. The lock stayed sealed — and so did your fate."));
+}
+function submitCode(){
+  if((window._enteredCode||"") === pendingCode){
+    winLevel("Lock disengaged. Two down, one to go.");
+  } else {
+    explode("Wrong code. The maths didn't check out.");
+  }
+}
+
+/* ---------------- LEVEL 3: PATTERN ---------------- */
+let patternSeq = [];
+let patternStep = 0;
+let patternRound = 1;
+const PAD_COLORS = ["red","amber","green","blue"];
+
+function initLevel3(){
+  patternSeq = [];
+  patternRound = 1;
+  document.getElementById('patternStatus').textContent = "WATCH THE SEQUENCE...";
+  setupPads();
+  renderDots();
+  nextRound();
+  showScreen('screen-l3');
+  startTimer(75,'timerL3', ()=>explode("Time ran out mid-sequence. The circuit overloaded."));
+}
+function setupPads(){
+  document.querySelectorAll('#patternGrid .pad').forEach(pad=>{
+    pad.onclick = ()=>handlePadClick(pad.dataset.c);
+  });
+}
+function renderDots(){
+  const dots = document.getElementById('patternDots');
+  dots.innerHTML = "";
+  for(let i=0;i<patternRound+2;i++){
+    const d = document.createElement('div');
+    d.className = "dot";
+    dots.appendChild(d);
+  }
+}
+function nextRound(){
+  patternStep = 0;
+  patternSeq.push(PAD_COLORS[Math.floor(Math.random()*4)]);
+  renderDots();
+  document.getElementById('patternStatus').textContent = "WATCH THE SEQUENCE...";
+  setPadsDisabled(true);
+  playSequence();
+}
+function setPadsDisabled(disabled){
+  document.querySelectorAll('#patternGrid .pad').forEach(p=>p.classList.toggle('disabled', disabled));
+}
+function playSequence(){
+  let i = 0;
+  const interval = setInterval(()=>{
+    litPad(patternSeq[i]);
+    i++;
+    if(i>=patternSeq.length){
+      clearInterval(interval);
+      setTimeout(()=>{
+        setPadsDisabled(false);
+        document.getElementById('patternStatus').textContent = "YOUR TURN — REPEAT THE SEQUENCE";
+      }, 500);
+    }
+  }, 650);
+}
+function litPad(color){
+  const pad = document.querySelector(`#patternGrid .pad-${color}`);
+  pad.classList.add('lit');
+  setTimeout(()=>pad.classList.remove('lit'), 400);
+}
+function handlePadClick(color){
+  if(document.querySelector(`#patternGrid .pad-${color}`).classList.contains('disabled')) return;
+  litPad(color);
+  if(color === patternSeq[patternStep]){
+    markDot(patternStep);
+    patternStep++;
+    if(patternStep >= patternSeq.length){
+      if(patternRound >= 4){
+        winLevel("Sequence complete. All three devices are now silent. Mission accomplished, Charles.");
+      } else {
+        patternRound++;
+        setTimeout(nextRound, 700);
+      }
+    }
+  } else {
+    explode("Wrong pad. The sequence broke and so did the circuit.");
+  }
+}
+function markDot(i){
+  const dots = document.getElementById('patternDots').children;
+  if(dots[i]) dots[i].classList.add('done');
+}
+
+/* ---------------- confetti for victory ---------------- */
+function spawnConfetti(){
+  const app = document.getElementById('app');
+  const colors = ["#8fff5c","#ffb000","#ff2e2e","#4fa8ff","#ffffff"];
+  for(let i=0;i<60;i++){
+    const c = document.createElement('div');
+    c.className = "confetti";
+    c.style.left = Math.random()*100+"%";
+    c.style.background = colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDuration = (2+Math.random()*2)+"s";
+    c.style.animationDelay = (Math.random()*0.6)+"s";
+    app.appendChild(c);
+    setTimeout(()=>c.remove(), 5000);
+  }
+}
+</script>
+</body>
+</html>
